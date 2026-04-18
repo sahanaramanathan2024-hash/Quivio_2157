@@ -1,0 +1,819 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Quivio - AI-Assisted Quiz Generation Platform
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: quizzes
+    description: Quiz management
+  - name: questions
+    description: Question management
+  - name: attempts
+    description: Quiz attempts and results
+  - name: dashboard
+    description: Dashboard and analytics
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /quizzes:
+    get:
+      operationId: listQuizzes
+      tags: [quizzes]
+      summary: List quizzes for the current user
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [faculty, student]
+      responses:
+        "200":
+          description: List of quizzes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Quiz"
+    post:
+      operationId: createQuiz
+      tags: [quizzes]
+      summary: Create a new quiz (faculty)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuizBody"
+      responses:
+        "201":
+          description: Created quiz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quiz"
+
+  /quizzes/{id}:
+    get:
+      operationId: getQuiz
+      tags: [quizzes]
+      summary: Get a quiz by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quiz with questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizWithQuestions"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateQuiz
+      tags: [quizzes]
+      summary: Update a quiz
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuizBody"
+      responses:
+        "200":
+          description: Updated quiz
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quiz"
+    delete:
+      operationId: deleteQuiz
+      tags: [quizzes]
+      summary: Delete a quiz
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /quizzes/{id}/generate:
+    post:
+      operationId: generateQuizQuestions
+      tags: [quizzes]
+      summary: AI-generate questions for a quiz
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateQuestionsBody"
+      responses:
+        "200":
+          description: Generated questions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Question"
+
+  /quizzes/{id}/publish:
+    post:
+      operationId: publishQuiz
+      tags: [quizzes]
+      summary: Publish a quiz so students can attempt it
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated quiz status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quiz"
+
+  /questions/{id}:
+    patch:
+      operationId: updateQuestion
+      tags: [questions]
+      summary: Update a question (text, options, answer)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQuestionBody"
+      responses:
+        "200":
+          description: Updated question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Question"
+    delete:
+      operationId: deleteQuestion
+      tags: [questions]
+      summary: Delete a question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /attempts:
+    get:
+      operationId: listAttempts
+      tags: [attempts]
+      summary: List quiz attempts for the current user
+      responses:
+        "200":
+          description: List of attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Attempt"
+    post:
+      operationId: createAttempt
+      tags: [attempts]
+      summary: Start a new quiz attempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAttemptBody"
+      responses:
+        "201":
+          description: Created attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attempt"
+
+  /attempts/{id}:
+    get:
+      operationId: getAttempt
+      tags: [attempts]
+      summary: Get a specific attempt with answers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Attempt with answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptWithAnswers"
+
+  /attempts/{id}/submit:
+    post:
+      operationId: submitAttempt
+      tags: [attempts]
+      summary: Submit answers and get AI-evaluated results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitAttemptBody"
+      responses:
+        "200":
+          description: Attempt result with AI feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttemptResult"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics for current user
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Get recent quiz activity
+      responses:
+        "200":
+          description: Recent activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/quiz-performance/{quizId}:
+    get:
+      operationId: getQuizPerformance
+      tags: [dashboard]
+      summary: Get performance analytics for a specific quiz (faculty)
+      parameters:
+        - name: quizId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quiz performance analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizPerformance"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Quiz:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        topic:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        questionCount:
+          type: integer
+        duration:
+          type: integer
+          description: Duration in minutes
+        status:
+          type: string
+          enum: [draft, published]
+        createdBy:
+          type: string
+          description: Clerk user ID of creator
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        description:
+          type: ["string", "null"]
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer, mixed]
+      required:
+        - id
+        - title
+        - topic
+        - difficulty
+        - questionCount
+        - duration
+        - status
+        - createdBy
+        - createdAt
+        - updatedAt
+        - questionType
+
+    QuizWithQuestions:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        topic:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        questionCount:
+          type: integer
+        duration:
+          type: integer
+        status:
+          type: string
+          enum: [draft, published]
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        description:
+          type: ["string", "null"]
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer, mixed]
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Question"
+      required:
+        - id
+        - title
+        - topic
+        - difficulty
+        - questionCount
+        - duration
+        - status
+        - createdBy
+        - createdAt
+        - updatedAt
+        - questionType
+        - questions
+
+    CreateQuizBody:
+      type: object
+      properties:
+        title:
+          type: string
+        topic:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        questionCount:
+          type: integer
+        duration:
+          type: integer
+        description:
+          type: ["string", "null"]
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer, mixed]
+      required:
+        - title
+        - topic
+        - difficulty
+        - questionCount
+        - duration
+        - questionType
+
+    UpdateQuizBody:
+      type: object
+      properties:
+        title:
+          type: string
+        topic:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        questionCount:
+          type: integer
+        duration:
+          type: integer
+        description:
+          type: ["string", "null"]
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer, mixed]
+        status:
+          type: string
+          enum: [draft, published]
+
+    GenerateQuestionsBody:
+      type: object
+      properties:
+        count:
+          type: integer
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer, mixed]
+        additionalContext:
+          type: ["string", "null"]
+      required:
+        - count
+        - questionType
+
+    Question:
+      type: object
+      properties:
+        id:
+          type: integer
+        quizId:
+          type: integer
+        questionText:
+          type: string
+        questionType:
+          type: string
+          enum: [multiple_choice, short_answer]
+        options:
+          type: ["string", "null"]
+          description: JSON array of options for multiple choice
+        correctAnswer:
+          type: string
+        explanation:
+          type: string
+        orderIndex:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - quizId
+        - questionText
+        - questionType
+        - correctAnswer
+        - explanation
+        - orderIndex
+        - createdAt
+
+    UpdateQuestionBody:
+      type: object
+      properties:
+        questionText:
+          type: string
+        options:
+          type: ["string", "null"]
+        correctAnswer:
+          type: string
+        explanation:
+          type: string
+
+    Attempt:
+      type: object
+      properties:
+        id:
+          type: integer
+        quizId:
+          type: integer
+        userId:
+          type: string
+        score:
+          type: ["number", "null"]
+        maxScore:
+          type: ["integer", "null"]
+        percentage:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [in_progress, completed]
+        feedback:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: ["string", "null"]
+        quizTitle:
+          type: ["string", "null"]
+      required:
+        - id
+        - quizId
+        - userId
+        - status
+        - startedAt
+
+    AttemptWithAnswers:
+      type: object
+      properties:
+        id:
+          type: integer
+        quizId:
+          type: integer
+        userId:
+          type: string
+        score:
+          type: ["number", "null"]
+        maxScore:
+          type: ["integer", "null"]
+        percentage:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [in_progress, completed]
+        feedback:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: ["string", "null"]
+        quizTitle:
+          type: ["string", "null"]
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Answer"
+      required:
+        - id
+        - quizId
+        - userId
+        - status
+        - startedAt
+        - answers
+
+    CreateAttemptBody:
+      type: object
+      properties:
+        quizId:
+          type: integer
+      required:
+        - quizId
+
+    SubmitAttemptBody:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionId:
+                type: integer
+              userAnswer:
+                type: string
+            required:
+              - questionId
+              - userAnswer
+      required:
+        - answers
+
+    AttemptResult:
+      type: object
+      properties:
+        id:
+          type: integer
+        quizId:
+          type: integer
+        userId:
+          type: string
+        score:
+          type: number
+        maxScore:
+          type: integer
+        percentage:
+          type: number
+        status:
+          type: string
+          enum: [completed]
+        feedback:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        quizTitle:
+          type: ["string", "null"]
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Answer"
+      required:
+        - id
+        - quizId
+        - userId
+        - score
+        - maxScore
+        - percentage
+        - status
+        - feedback
+        - startedAt
+        - completedAt
+        - answers
+
+    Answer:
+      type: object
+      properties:
+        id:
+          type: integer
+        attemptId:
+          type: integer
+        questionId:
+          type: integer
+        userAnswer:
+          type: string
+        isCorrect:
+          type: ["boolean", "null"]
+        pointsEarned:
+          type: ["number", "null"]
+        aiFeedback:
+          type: ["string", "null"]
+        questionText:
+          type: ["string", "null"]
+        correctAnswer:
+          type: ["string", "null"]
+        explanation:
+          type: ["string", "null"]
+      required:
+        - id
+        - attemptId
+        - questionId
+        - userAnswer
+
+    DashboardStats:
+      type: object
+      properties:
+        totalQuizzes:
+          type: integer
+        totalAttempts:
+          type: integer
+        averageScore:
+          type: number
+        publishedQuizzes:
+          type: integer
+        completedAttempts:
+          type: integer
+        activeStudents:
+          type: integer
+      required:
+        - totalQuizzes
+        - totalAttempts
+        - averageScore
+        - publishedQuizzes
+        - completedAttempts
+        - activeStudents
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [quiz_created, quiz_attempted, quiz_completed]
+        title:
+          type: string
+        subtitle:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        score:
+          type: ["number", "null"]
+      required:
+        - id
+        - type
+        - title
+        - subtitle
+        - timestamp
+
+    QuizPerformance:
+      type: object
+      properties:
+        quizId:
+          type: integer
+        quizTitle:
+          type: string
+        totalAttempts:
+          type: integer
+        averageScore:
+          type: number
+        averagePercentage:
+          type: number
+        passRate:
+          type: number
+        questionStats:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionStat"
+      required:
+        - quizId
+        - quizTitle
+        - totalAttempts
+        - averageScore
+        - averagePercentage
+        - passRate
+        - questionStats
+
+    QuestionStat:
+      type: object
+      properties:
+        questionId:
+          type: integer
+        questionText:
+          type: string
+        correctRate:
+          type: number
+        totalAnswers:
+          type: integer
+      required:
+        - questionId
+        - questionText
+        - correctRate
+        - totalAnswers
